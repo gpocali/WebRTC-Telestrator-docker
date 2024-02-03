@@ -1,6 +1,6 @@
 FROM node:alpine
 
-EXPOSE 8888
+EXPOSE 8888 8889
 
 RUN mkdir -p /opt/app
 WORKDIR /opt/app
