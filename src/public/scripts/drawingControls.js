@@ -436,13 +436,12 @@ class DrawingControls {
 
         this.#context.scale(this.#scale.x, this.#scale.y);
 
-        this.#sendData(JSON.stringify({
-            action: "resize",
-            width: size.width,
-            height: size.height,
-            videoWidth: video.videoWidth,
-            videoHeight: video.videoHeight
-        }));
+        // Dispatch obsupdate event after resize and scaling
+        // This will send the current state of the canvas (which might be blank or need redrawing)
+        // The current logic doesn't explicitly redraw all content on resize,
+        // so OBS will reflect the cleared/scaled canvas.
+        // If content needs to be preserved and redrawn, that logic would go before this dispatch.
+        this.dispatchEvent(new CustomEvent('obsupdate', { detail: this.#canvas.toDataURL('image/jpeg') }));
     }
 
     #getVideoDimensions(video) {

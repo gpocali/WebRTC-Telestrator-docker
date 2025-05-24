@@ -251,19 +251,6 @@ window.onerror = (message, source, lineno, colno, error) => {
         // Using 'l' prefix for generic log as per server.js existing non-JSON handling
         // Or define a new JSON type for client-side errors if preferred
         webSocket.send(`l${errorLog}`); // Ensure server handles this, or use sendSignalMessage
-            }
-        }
-    };
-}
-
-// Global error handler for logging
-window.onerror = (message, source, lineno, colno, error) => {
-    const errorLog = `ERROR: ${message} at ${source}:${lineno}:${colno}`;
-    console.error(errorLog, error);
-    if (webSocket && webSocket.readyState === WebSocket.OPEN) {
-        // Using 'l' prefix for generic log as per server.js existing non-JSON handling
-        // Or define a new JSON type for client-side errors if preferred
-        webSocket.send(`l${errorLog}`); // Ensure server handles this, or use sendSignalMessage
     }
 }
 
