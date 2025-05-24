@@ -42,7 +42,7 @@ function sendMJpeg(msg) {
         for (const res of mjpegStreams) {
             const mjpegBytes = Buffer.from(dataUriToBuffer(msg).buffer);
             res.write("--myboundary\r\n");
-            res.write("Content-Type: image/jpeg\r\n");
+            res.write("Content-Type: image/png\r\n");
             res.write("Content-Length: " + mjpegBytes.length + "\r\n\r\n");
             res.write(mjpegBytes, "binary");
         }

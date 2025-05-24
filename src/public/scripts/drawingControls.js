@@ -31,6 +31,7 @@ class DrawingControls extends EventTarget {
     currentEndPoint = { x: 0, y: 0 }; // For arrow preview
     lastDrawnPreview = null; // Stores ImageData to clear previous preview
     freehandPoints = []; // For accumulating points for a freehand stroke
+    currentShapeBaseSize = 1; // Default base size, will be updated
 
     /**
      * Create an instance of the drawing controls
@@ -38,6 +39,7 @@ class DrawingControls extends EventTarget {
      */
     constructor(isDebugMode) {
         super(); // Add this line
+        this.currentShapeBaseSize = this.#lineWidth; // Initialize with current lineWidth
         // Create the canvas context
         this.#canvas = document.getElementById("canvas");
         this.#context = this.#canvas.getContext("2d", { willReadFrequently: true });
@@ -132,7 +134,7 @@ class DrawingControls extends EventTarget {
                 this.#canvas.height = e.height;
                 this.#canvasRect = this.#canvas.getBoundingClientRect();
     // No direct drawing from 'e' anymore, will be via drawShape
-    this.dispatchEvent(new CustomEvent('obsupdate', { detail: this.#canvas.toDataURL('image/jpeg') })); // Or png
+    this.dispatchEvent(new CustomEvent('obsupdate', { detail: this.#canvas.toDataURL('image/png') })); // Or png
                 break;
 // The old "start", "move", "stop" cases for direct drawing are removed
 // as drawing is now done via drawShape method using structured JSON data.
@@ -264,7 +266,7 @@ class DrawingControls extends EventTarget {
             this.dispatchEvent(new CustomEvent('drawingcomplete', { detail: shapeDataForTransmission }));
         }
         // Dispatch event to update OBS
-        this.dispatchEvent(new CustomEvent('obsupdate', { detail: this.#canvas.toDataURL('image/jpeg') }));
+        this.dispatchEvent(new CustomEvent('obsupdate', { detail: this.#canvas.toDataURL('image/png') }));
 
 
         e.preventDefault();
@@ -304,10 +306,23 @@ class DrawingControls extends EventTarget {
         } else if (this.currentShape === "checkmark" || this.currentShape === "x") {
             const dx = endPoint.x - this.startPoint.x;
             const dy = endPoint.y - this.startPoint.y;
-            data.centerX = this.startPoint.x; // Or use midpoint: this.startPoint.x + dx / 2;
-            data.centerY = this.startPoint.y; // Or use midpoint: this.startPoint.y + dy / 2;
-            data.scale = Math.sqrt(dx * dx + dy * dy) / 50; // Adjust base size as needed
-            if (data.scale === 0) data.scale = 0.1; // Prevent zero scale for single click
+            data.centerX = this.startPoint.x; 
+            data.centerY = this.startPoint.y; 
+            
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            const tapThreshold = 5; // Pixels of movement to still be considered a tap
+
+            if (distance < tapThreshold) {
+                // It's a tap, use currentShapeBaseSize to determine initial scale
+                // Mapping from lineWidth (0-10) to a sensible scale.
+                // (this.currentShapeBaseSize + 1) gives 1-11. Multiplier 0.2 gives 0.2-2.2.
+                data.scale = (this.currentShapeBaseSize + 1) * 0.2; 
+            } else {
+                // It's a drag, use distance to determine scale
+                data.scale = distance / 50; // 50 is an arbitrary divisor
+            }
+            // Ensure scale is not zero
+            if (data.scale === 0) data.scale = (this.currentShapeBaseSize + 1) * 0.2; // Fallback to tap size
         }
         return data;
     }
@@ -322,7 +337,7 @@ class DrawingControls extends EventTarget {
             if (e.type !== "mouseout") { // Should always be true for button click
                 this.#context.putImageData(this.#undoStack[this.#undoIndex], 0, 0);
             }
-            this.dispatchEvent(new CustomEvent('obsupdate', { detail: this.#canvas.toDataURL('image/jpeg') }));
+            this.dispatchEvent(new CustomEvent('obsupdate', { detail: this.#canvas.toDataURL('image/png') }));
         }
         this.lastDrawnPreview = null; // Clear any preview state
         e.preventDefault();
@@ -335,7 +350,7 @@ class DrawingControls extends EventTarget {
         this.#undoStack = [];
         this.#undoIndex = -1;
         this.lastDrawnPreview = null;
-        this.dispatchEvent(new CustomEvent('obsupdate', { detail: this.#canvas.toDataURL('image/jpeg') }));
+        this.dispatchEvent(new CustomEvent('obsupdate', { detail: this.#canvas.toDataURL('image/png') }));
         e.preventDefault();
         return false;
     }
@@ -400,6 +415,7 @@ class DrawingControls extends EventTarget {
 
     #onLineWidthChange(e) {
         this.#lineWidth = parseInt(e.target.value);
+        this.currentShapeBaseSize = this.#lineWidth; // Update base size
         localStorage.setItem("lineWidth", this.#lineWidth);
     }
 
@@ -446,7 +462,7 @@ class DrawingControls extends EventTarget {
         // The current logic doesn't explicitly redraw all content on resize,
         // so OBS will reflect the cleared/scaled canvas.
         // If content needs to be preserved and redrawn, that logic would go before this dispatch.
-        this.dispatchEvent(new CustomEvent('obsupdate', { detail: this.#canvas.toDataURL('image/jpeg') }));
+        this.dispatchEvent(new CustomEvent('obsupdate', { detail: this.#canvas.toDataURL('image/png') }));
     }
 
     #getVideoDimensions(video) {
@@ -527,7 +543,7 @@ class DrawingControls extends EventTarget {
         this.#undoIndex++;
         
         // Update OBS after drawing remote shape
-        this.dispatchEvent(new CustomEvent('obsupdate', { detail: this.#canvas.toDataURL('image/jpeg') }));
+        this.dispatchEvent(new CustomEvent('obsupdate', { detail: this.#canvas.toDataURL('image/png') }));
     }
 
 
