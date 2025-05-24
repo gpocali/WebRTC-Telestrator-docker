@@ -53,17 +53,21 @@ class DrawingControls extends EventTarget {
         if (typeof loadedOffset === "string") {
             this.#offset = parseInt(loadedOffset);
         }
-        const offsetControl = document.getElementById("offset");
-        offsetControl.addEventListener("change", (e) => this.#onOffsetChange(e));
-        offsetControl.value = this.#offset;
+        const offsetControl = document.getElementById("offsetV"); // Changed ID
+        if (offsetControl) { // Add null check for safety
+            offsetControl.addEventListener("change", (e) => this.#onOffsetChange(e));
+            offsetControl.value = this.#offset;
+        }
 
         const loadedInset = localStorage.getItem("inset");
         if (typeof loadedInset === "string") {
             this.#inset = parseInt(loadedInset);
         }
-        const insetControl = document.getElementById("inset");
-        insetControl.addEventListener("change", (e) => this.#onInsetChange(e));
-        insetControl.value = this.#inset;
+        const insetControl = document.getElementById("insetH"); // Changed ID
+        if (insetControl) { // Add null check for safety
+            insetControl.addEventListener("change", (e) => this.#onInsetChange(e));
+            insetControl.value = this.#inset;
+        }
 
         const lineWidth = localStorage.getItem("lineWidth");
         if (typeof lineWidth === "string") {
@@ -540,7 +544,7 @@ class DrawingControls extends EventTarget {
         // Or, if thickness is already scaled:
         // const headLength = 1.5 * thickness; // if thickness is scaledThickness
         // Let's assume thickness passed here IS the scaled one.
-        const headLength = 1.5 * thickness;
+        const headLength = 4 * thickness;
 
 
         const dx = toX - fromX;
