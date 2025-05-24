@@ -533,7 +533,7 @@ class DrawingControls {
         // This scaling needs to be consistent with how thickness is applied.
         // If thickness is original (1-10), and scaledThickness is (6-51),
         // we might want headLength to scale with original thickness.
-        const headLength = headLengthFactor * (thickness / (this.#lineWidth * 5 +1) * 2);  // Example scaling, may need tuning
+        // const headLength = headLengthFactor * (thickness / (this.#lineWidth * 5 +1) * 2);  // Example scaling, may need tuning
         // A simpler approach: make headLength proportional to the drawn line thickness
         // const headLength = 2 * thickness; // e.g. head is twice as long as line is thick
         // Or, if thickness is already scaled:
