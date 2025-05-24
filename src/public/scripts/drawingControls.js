@@ -1,4 +1,4 @@
-class DrawingControls {
+class DrawingControls extends EventTarget {
     /** @type {RTCDataChannel} */
     #dataChannel
     /** @type {WebSocket} */
@@ -37,6 +37,7 @@ class DrawingControls {
      * @param {boolean} isDebugMode 
      */
     constructor(isDebugMode) {
+        super(); // Add this line
         // Create the canvas context
         this.#canvas = document.getElementById("canvas");
         this.#context = this.#canvas.getContext("2d", { willReadFrequently: true });
