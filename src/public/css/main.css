@@ -156,6 +156,13 @@ body {
     margin-right: 50px;
 }
 
+/* Styles for active shape button */
+#tools button.active-shape {
+    background-color: #dodgerblue;
+    color: white;
+    border: 1px solid #000000;
+}
+
 #tools input#lineWidth {
     width: 150px;
     accent-color: #7373e8;

@@ -60,17 +60,45 @@ function initialize() {
     const drawCheckmarkButton = document.getElementById("drawCheckmark");
     const drawXButton = document.getElementById("drawX");
 
+    const shapeButtons = [
+        drawFreehandButton, 
+        drawArrowButton, 
+        drawCheckmarkButton, 
+        drawXButton
+    ].filter(btn => btn != null);
+
+    function setActiveShapeButton(clickedButton) {
+        shapeButtons.forEach(btn => btn.classList.remove("active-shape"));
+        if (clickedButton) {
+            clickedButton.classList.add("active-shape");
+        }
+    }
+
     if (drawFreehandButton) {
-        drawFreehandButton.addEventListener("click", () => drawingControls.setShape("freehand"));
+        drawFreehandButton.addEventListener("click", () => {
+            setActiveShapeButton(drawFreehandButton);
+            drawingControls.setShape("freehand");
+        });
+        // Set Freehand as default active button
+        setActiveShapeButton(drawFreehandButton); 
     }
     if (drawArrowButton) {
-        drawArrowButton.addEventListener("click", () => drawingControls.setShape("arrow"));
+        drawArrowButton.addEventListener("click", () => {
+            setActiveShapeButton(drawArrowButton);
+            drawingControls.setShape("arrow");
+        });
     }
     if (drawCheckmarkButton) {
-        drawCheckmarkButton.addEventListener("click", () => drawingControls.setShape("checkmark"));
+        drawCheckmarkButton.addEventListener("click", () => {
+            setActiveShapeButton(drawCheckmarkButton);
+            drawingControls.setShape("checkmark");
+        });
     }
     if (drawXButton) {
-        drawXButton.addEventListener("click", () => drawingControls.setShape("x"));
+        drawXButton.addEventListener("click", () => {
+            setActiveShapeButton(drawXButton);
+            drawingControls.setShape("x");
+        });
     }
 }
 
