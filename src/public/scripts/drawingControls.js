@@ -388,20 +388,9 @@ class DrawingControls extends EventTarget {
         }
     }
 
-    #onOffsetChange(e) {
-        this.#offset = parseInt(e.target.value);
-        this.#onResize(document.getElementById("video"));
-        this.#canvas.classList.add("cover");
+    // #onOffsetChange(e) method removed (as per previous step and this one)
 
-        clearTimeout(this.offsetBackgroundTimer);
-        this.offsetBackgroundTimer = setTimeout(() => {
-            this.#canvas.classList.remove("cover");
-        }, 750);
-
-        localStorage.setItem("offset", this.#offset);
-    }
-
-    // #onInsetChange(e) method removed
+    // #onInsetChange(e) method removed (as per previous step and this one)
 
     #onLineWidthChange(e) {
         this.#lineWidth = parseInt(e.target.value);
