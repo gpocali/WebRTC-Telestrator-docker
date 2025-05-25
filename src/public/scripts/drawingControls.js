@@ -20,8 +20,8 @@ class DrawingControls extends EventTarget {
     #lineWidth = 1;
     #isDrawing = false;
     #hasCanvasChanged = false;
-    #offset = 20;
-    #inset = 1;
+    // #offset = 20; // Removed
+    // #inset = 1;  // Removed
     #frameTimeout = null;
     currentShape = "freehand"; // Default shape
 
@@ -40,6 +40,8 @@ class DrawingControls extends EventTarget {
     constructor(isDebugMode) {
         super(); // Add this line
         this.currentShapeBaseSize = this.#lineWidth; // Initialize with current lineWidth
+        this.obsUpdateTimeout = null;
+        this.obsUpdateInterval = 50; // ms, for throttling
         // Create the canvas context
         this.#canvas = document.getElementById("canvas");
         this.#context = this.#canvas.getContext("2d", { willReadFrequently: true });
@@ -51,25 +53,25 @@ class DrawingControls extends EventTarget {
         this.#canvas.addEventListener("pointerout", (e) => this.#onStop(e));
 
         // Load settings
-        const loadedOffset = localStorage.getItem("offset");
-        if (typeof loadedOffset === "string") {
-            this.#offset = parseInt(loadedOffset);
-        }
-        const offsetControl = document.getElementById("offsetV"); // Changed ID
-        if (offsetControl) { // Add null check for safety
-            offsetControl.addEventListener("change", (e) => this.#onOffsetChange(e));
-            offsetControl.value = this.#offset;
-        }
+        // const loadedOffset = localStorage.getItem("offset");
+        // if (typeof loadedOffset === "string") {
+        //     this.#offset = parseInt(loadedOffset);
+        // }
+        // const offsetControl = document.getElementById("offsetV"); // Changed ID
+        // if (offsetControl) { // Add null check for safety
+        //     offsetControl.addEventListener("change", (e) => this.#onOffsetChange(e));
+        //     offsetControl.value = this.#offset;
+        // }
 
-        const loadedInset = localStorage.getItem("inset");
-        if (typeof loadedInset === "string") {
-            this.#inset = parseInt(loadedInset);
-        }
-        const insetControl = document.getElementById("insetH"); // Changed ID
-        if (insetControl) { // Add null check for safety
-            insetControl.addEventListener("change", (e) => this.#onInsetChange(e));
-            insetControl.value = this.#inset;
-        }
+        // const loadedInset = localStorage.getItem("inset");
+        // if (typeof loadedInset === "string") {
+        //     this.#inset = parseInt(loadedInset);
+        // }
+        // const insetControl = document.getElementById("insetH"); // Changed ID
+        // if (insetControl) { // Add null check for safety
+        //     insetControl.addEventListener("change", (e) => this.#onInsetChange(e));
+        //     insetControl.value = this.#inset;
+        // }
 
         const lineWidth = localStorage.getItem("lineWidth");
         if (typeof lineWidth === "string") {
@@ -194,6 +196,7 @@ class DrawingControls extends EventTarget {
             this.#context.lineJoin = "round";
             this.#context.stroke();
             this.freehandPoints.push({ x: currentPoint.x, y: currentPoint.y });
+            this._throttledObsUpdate();
             // No sendData here anymore for freehand move
         } else if (this.currentShape === "arrow" || this.currentShape === "checkmark" || this.currentShape === "x") {
             this.currentEndPoint = currentPoint;
@@ -221,6 +224,7 @@ class DrawingControls extends EventTarget {
                 const scale = Math.sqrt(dx * dx + dy * dy) / 50; // 50 is an arbitrary base size
                 this._drawMark(this.#context, this.currentShape, this.startPoint.x, this.startPoint.y, scale, this.#lineColor, tempLineWidth);
             }
+            this._throttledObsUpdate();
         }
         e.preventDefault();
         return false;
@@ -313,16 +317,15 @@ class DrawingControls extends EventTarget {
             const tapThreshold = 5; // Pixels of movement to still be considered a tap
 
             if (distance < tapThreshold) {
-                // It's a tap, use currentShapeBaseSize to determine initial scale
-                // Mapping from lineWidth (0-10) to a sensible scale.
-                // (this.currentShapeBaseSize + 1) gives 1-11. Multiplier 0.2 gives 0.2-2.2.
-                data.scale = (this.currentShapeBaseSize + 1) * 0.2; 
+                // It's a tap, use lineWidth to determine initial scale
+                data.scale = (this.currentShapeBaseSize + 1) * 0.8; // Changed 0.2 to 0.8
             } else {
                 // It's a drag, use distance to determine scale
-                data.scale = distance / 50; // 50 is an arbitrary divisor
+                data.scale = distance / 50; 
             }
-            // Ensure scale is not zero
-            if (data.scale === 0) data.scale = (this.currentShapeBaseSize + 1) * 0.2; // Fallback to tap size
+            // Ensure scale is not zero if distance was exactly tapThreshold or slightly more but resulted in 0 scale
+            // Also update the fallback to use the new multiplier
+            if (data.scale === 0) data.scale = (this.currentShapeBaseSize + 1) * 0.8; // Changed 0.2 to 0.8
         }
         return data;
     }
@@ -400,18 +403,7 @@ class DrawingControls extends EventTarget {
         localStorage.setItem("offset", this.#offset);
     }
 
-    #onInsetChange(e) {
-        this.#inset = parseInt(e.target.value);
-        this.#onResize(document.getElementById("video"));
-        this.#canvas.classList.add("cover");
-
-        clearTimeout(this.offsetBackgroundTimer);
-        this.offsetBackgroundTimer = setTimeout(() => {
-            this.#canvas.classList.remove("cover");
-        }, 750);
-
-        localStorage.setItem("inset", this.#inset);
-    }
+    // #onInsetChange(e) method removed
 
     #onLineWidthChange(e) {
         this.#lineWidth = parseInt(e.target.value);
@@ -446,13 +438,19 @@ class DrawingControls extends EventTarget {
         const size = this.#getVideoDimensions(video);
         this.#scale = { x: size.width / video.videoWidth, y: size.height / video.videoHeight };
 
-        const offset = this.#offset * this.#scale.y;
-        const inset = this.#inset * this.#scale.x;
+        const offset = 0; // Hardcoded to 0
+        const inset = 0;  // Hardcoded to 0
 
         this.#canvas.width = size.width - inset * 2;
-        this.#canvas.height = size.height - (offset + this.#inset * this.#scale.y);
+        // Corrected height calculation to use the 'inset' variable consistently for horizontal padding's effect on vertical space if any,
+        // or simply remove its effect if it was only for horizontal. Assuming it was for vertical margin too.
+        // However, the original logic was `size.height - (offset + this.#inset * this.#scale.y);`
+        // If #inset was purely horizontal, then the vertical calculation should only use offset.
+        // Given the names "offsetV" and "insetH", offset was vertical, inset horizontal.
+        // So, the vertical component of inset affecting height should be 0.
+        this.#canvas.height = size.height - offset; // Corrected: inset should not directly reduce height here.
         this.#canvas.style.left = `${inset}px`;
-        this.#canvas.style.top = `${offset / 2}px`;
+        this.#canvas.style.top = `${offset / 2}px`; // This remains if offset is only vertical top margin
         this.#canvasRect = this.#canvas.getBoundingClientRect();
 
         this.#context.scale(this.#scale.x, this.#scale.y);
@@ -560,12 +558,18 @@ class DrawingControls extends EventTarget {
         // Or, if thickness is already scaled:
         // const headLength = 1.5 * thickness; // if thickness is scaledThickness
         // Let's assume thickness passed here IS the scaled one.
-        const headLength = 4 * thickness;
+        const headLength = 6 * thickness; // Increased headLength
 
 
         const dx = toX - fromX;
         const dy = toY - fromY;
         const angle = Math.atan2(dy, dx);
+
+        // Calculate the point where the line should visually end to be covered by the arrowhead
+        const lineShortenAmount = thickness / 2.5; // Shorten by a bit less than half thickness to ensure overlap
+                                                  // This value might need tuning.
+        const lineToX = toX - Math.cos(angle) * lineShortenAmount;
+        const lineToY = toY - Math.sin(angle) * lineShortenAmount;
 
         ctx.save();
         ctx.strokeStyle = color;
@@ -575,8 +579,13 @@ class DrawingControls extends EventTarget {
 
         ctx.beginPath();
         ctx.moveTo(fromX, fromY);
-        ctx.lineTo(toX, toY);
-        ctx.stroke(); // Draw the line part
+        // Use the new shortened line end points
+        if (Math.sqrt(dx*dx + dy*dy) > lineShortenAmount) { // Only shorten if line is long enough
+            ctx.lineTo(lineToX, lineToY);
+        } else { // Line is too short to shorten, draw to original end
+            ctx.lineTo(toX, toY);
+        }
+        ctx.stroke(); // Draw the (potentially shortened) line part
 
         // Draw the arrowhead
         ctx.beginPath();
@@ -620,5 +629,15 @@ class DrawingControls extends EventTarget {
         }
         ctx.stroke();
         ctx.restore();
+    }
+
+    _throttledObsUpdate() {
+        if (this.obsUpdateTimeout) {
+            clearTimeout(this.obsUpdateTimeout);
+        }
+        this.obsUpdateTimeout = setTimeout(() => {
+            this.dispatchEvent(new CustomEvent('obsupdate', { detail: this.#canvas.toDataURL('image/png') }));
+            this.obsUpdateTimeout = null;
+        }, this.obsUpdateInterval);
     }
 }

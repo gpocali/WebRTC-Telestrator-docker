@@ -158,9 +158,9 @@ body {
 
 /* Styles for active shape button */
 #tools button.active-shape {
-    background-color: #dodgerblue;
+    background-color: #6c757d; /* Changed to a darker grey */
     color: white;
-    border: 1px solid #000000;
+    border: 1px solid #000000; /* Kept border, can be adjusted */
 }
 
 #tools input#lineWidth {
