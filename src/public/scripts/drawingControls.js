@@ -20,8 +20,6 @@ class DrawingControls extends EventTarget {
     #lineWidth = 1;
     #isDrawing = false;
     #hasCanvasChanged = false;
-    // #offset = 20; // Removed
-    // #inset = 1;  // Removed
     #frameTimeout = null;
     currentShape = "freehand"; // Default shape
 
