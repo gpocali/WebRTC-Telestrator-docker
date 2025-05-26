@@ -6,6 +6,7 @@ const { dataUriToBuffer } = require("data-uri-to-buffer");
 const crypto = require('crypto');
 
 const emptyImage = "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7";
+let latestObsDataUri = emptyImage;
 
 // Initialize client management variables
 let clients = new Map();
@@ -34,20 +35,6 @@ program
 program.parse(process.argv);
 const opts = program.opts();
 const port = opts.port || 8888;
-
-// Function to stream the canvas image out to obs
-const mjpegStreams = [];
-function sendMJpeg(msg) {
-    if (mjpegStreams.length > 0) {
-        for (const res of mjpegStreams) {
-            const mjpegBytes = Buffer.from(dataUriToBuffer(msg).buffer);
-            res.write("--myboundary\r\n");
-            res.write("Content-Type: image/png\r\n");
-            res.write("Content-Length: " + mjpegBytes.length + "\r\n\r\n");
-            res.write(mjpegBytes, "binary");
-        }
-    }
-}
 
 // Create the websocket signaling server
 const wsList = [];
@@ -83,6 +70,7 @@ wss.on("connection", function (ws) {
         if (hostInfo && hostInfo.id === clientId) {
             console.log(`Host ${clientId} has disconnected.`);
             hostInfo = null;
+            latestObsDataUri = emptyImage; // Reset URI when host disconnects
             const hostLeftMessage = JSON.stringify({"type": "host_left", "payload": {"hostId": clientId}});
             for (const clientWs of clients.values()) {
                 clientWs.send(hostLeftMessage);
@@ -91,11 +79,6 @@ wss.on("connection", function (ws) {
         }
 
         wsList.splice(wsList.indexOf(ws), 1);
-
-        // On a disconnect, clear out the canvas
-        // We have to do this twice because some browsers (OBS) seem to cache the frames
-        sendMJpeg(emptyImage);
-        sendMJpeg(emptyImage);
     });
 
     ws.on("message", function (message) {
@@ -217,9 +200,8 @@ wss.on("connection", function (ws) {
                 }
             }
         } else if (jsonMessage && jsonMessage.type === "obs_canvas_data") {
-            // Update the mjpeg stream for OBS
-            // console.log(`Received canvas data for OBS from ${ws.id}`); // Optional: log less frequently
-            sendMJpeg(jsonMessage.payload.dataUri);
+            latestObsDataUri = jsonMessage.payload.dataUri;
+            // console.log(`Updated latestObsDataUri from ${ws.id}`); // Optional: for debugging
         }
          else {
             // Existing message handling logic for non-WebRTC, non-drawing JSON messages
@@ -267,15 +249,39 @@ wss.on("connection", function (ws) {
 // Create the http server to serve the html files
 app = express();
 app.get("/img", (req, res) => {
-    // Store the request for the mjpeg
-    mjpegStreams.push(res);
-
-    // Set appropriate headers for MJPEG content
     res.writeHead(200, {
         "Content-Type": "multipart/x-mixed-replace; boundary=--myboundary",
         "Cache-Control": "no-cache",
         "Connection": "close",
         "Pragma": "no-cache"
+    });
+
+    const writeFrame = () => {
+        if (res.writableEnded) return; // Stop if client disconnected
+        try {
+            const buffer = dataUriToBuffer(latestObsDataUri); // Define buffer inside, it might throw
+            const mjpegBytes = Buffer.from(buffer.buffer); // dataUriToBuffer now returns object with buffer
+            res.write("--myboundary\r\n");
+            res.write("Content-Type: image/png\r\n");
+            res.write("Content-Length: " + mjpegBytes.length + "\r\n\r\n");
+            res.write(mjpegBytes, "binary");
+        } catch (error) {
+            // console.error("Error writing MJPEG frame:", error);
+            // Consider ending response or clearing interval if error is persistent
+            // For now, if dataUriToBuffer fails (e.g. malformed URI), it might skip a frame
+        }
+    };
+
+    // Send the first frame immediately
+    writeFrame();
+
+    // Then, set an interval to repeatedly send the latestObsDataUri
+    const frameInterval = setInterval(writeFrame, 100); // Send frame every 100ms
+
+    // Clean up interval when client disconnects
+    req.on("close", () => {
+        clearInterval(frameInterval);
+        res.end();
     });
 });
 app.use(express.static(__dirname + "/public"));
