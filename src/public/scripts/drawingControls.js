@@ -152,6 +152,7 @@ class DrawingControls extends EventTarget {
     // will be triggered by an 'obsupdate' event.
 
     #onStart(e) {
+        console.log('[Diag] #onStart: Entry, Shape:', this.currentShape);
         if (this.#firstPointer) {
             e.preventDefault();
             return false;
@@ -170,6 +171,12 @@ class DrawingControls extends EventTarget {
             // For other shapes, capture the current canvas state for preview restoration
             if (this.#undoStack.length > 0 && this.#undoIndex >= 0) {
                 this.lastDrawnPreview = this.#undoStack[this.#undoIndex];
+                if (this.lastDrawnPreview) {
+                    console.log('[Diag] #onStart (shape): lastDrawnPreview ImageData length:', this.lastDrawnPreview.data.length);
+                    console.log('[Diag] #onStart (shape): lastDrawnPreview ImageData sum (first 100 bytes sample):', this.lastDrawnPreview.data.slice(0, 100).reduce((a, b) => a + b, 0));
+                } else {
+                    console.log('[Diag] #onStart (shape): lastDrawnPreview is null or undefined after assignment from undoStack.');
+                }
             } else {
                 // If undo stack is empty, save the current blank canvas state (or a clear rect)
                 // For simplicity, if undo stack is empty, preview will draw on current canvas
@@ -234,6 +241,7 @@ class DrawingControls extends EventTarget {
     }
 
     #onStop(e) {
+        console.log('[Diag] #onStop: Entry, Shape:', this.currentShape);
         if (this.#firstPointer && e.pointerId !== this.#firstPointer.pointerId) {
             return false;
         }
@@ -252,6 +260,7 @@ class DrawingControls extends EventTarget {
         } else { // Logic for shapes (arrow, checkmark, x)
             // Diagnostic Frame 1: State before any modification for final draw
             this.dispatchEvent(new CustomEvent('obsupdate', { detail: this.#canvas.toDataURL('image/png') + "?diag_before_put" }));
+            console.log('[Diag] #onStop (shape) - STEP 1: Before putImageData. Canvas dataURI length:', this.#canvas.toDataURL().length);
 
             if (this.lastDrawnPreview) { // Check lastDrawnPreview before using it
                 this.#context.putImageData(this.lastDrawnPreview, 0, 0);
@@ -259,12 +268,14 @@ class DrawingControls extends EventTarget {
 
             // Diagnostic Frame 2: State after putImageData, before drawing final shape
             this.dispatchEvent(new CustomEvent('obsupdate', { detail: this.#canvas.toDataURL('image/png') + "?diag_after_put" }));
+            console.log('[Diag] #onStop (shape) - STEP 2: After putImageData. Canvas dataURI length:', this.#canvas.toDataURL().length);
 
             if (this.currentShape === "arrow") {
                 this._drawArrow(this.#context, shapeDataForTransmission.startX, shapeDataForTransmission.startY, shapeDataForTransmission.endX, shapeDataForTransmission.endY, shapeDataForTransmission.color, finalLineWidth);
             } else if (this.currentShape === "checkmark" || this.currentShape === "x") {
                 this._drawMark(this.#context, shapeDataForTransmission.shape, shapeDataForTransmission.centerX, shapeDataForTransmission.centerY, shapeDataForTransmission.scale, shapeDataForTransmission.color, finalLineWidth);
             }
+            console.log('[Diag] #onStop (shape) - STEP 3: After final shape draw. Canvas dataURI length:', this.#canvas.toDataURL().length);
         }
         
         // Common logic for all shapes
@@ -357,8 +368,11 @@ class DrawingControls extends EventTarget {
     }
 
     #onClear(e) {
+        console.log('[Diag] #onClear: Entry');
         this.#context.clearRect(0, 0, this.#canvas.width, this.#canvas.height);
         const clearedImageData = this.#context.getImageData(0, 0, this.#canvas.width, this.#canvas.height);
+        console.log('[Diag] #onClear: Cleared state ImageData length:', clearedImageData.data.length);
+        console.log('[Diag] #onClear: Cleared state ImageData sum (first 100 bytes sample):', clearedImageData.data.slice(0, 100).reduce((a, b) => a + b, 0));
         this.#undoStack = [clearedImageData];
         this.#undoIndex = 0;
         this.lastDrawnPreview = null;
