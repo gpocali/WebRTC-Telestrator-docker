@@ -276,7 +276,7 @@ app.get("/img", (req, res) => {
     writeFrame();
 
     // Then, set an interval to repeatedly send the latestObsDataUri
-    const frameInterval = setInterval(writeFrame, 100); // Send frame every 100ms
+    const frameInterval = setInterval(writeFrame, 33); // Send frame every ~33ms (target 30 FPS)
 
     // Clean up interval when client disconnects
     req.on("close", () => {
