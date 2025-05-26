@@ -244,8 +244,6 @@ class DrawingControls extends EventTarget {
         const endPoint = { x: this.#getX(e), y: this.#getY(e) };
         const finalLineWidth = this.#lineWidth * 5 + 1; // Consistent thickness
 
-        const finalLineWidth = this.#lineWidth * 5 + 1; // Consistent thickness
-
         // Restore canvas to state before preview drawing started for shapes
         if (this.currentShape !== "freehand" && this.lastDrawnPreview) {
             this.#context.putImageData(this.lastDrawnPreview, 0, 0);
