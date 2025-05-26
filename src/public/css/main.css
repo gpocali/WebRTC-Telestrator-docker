@@ -42,31 +42,50 @@ body {
     width: 200px;
 }
 
+#mediaStage {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 100vw; /* Full viewport width */
+    height: calc(100vw * 9 / 16); /* Height based on 16:9 aspect ratio of viewport width */
+    max-height: 100vh; /* Max height is full viewport height */
+    max-width: calc(100vh * 16 / 9); /* Max width based on 16:9 aspect ratio of viewport height */
+    transform: translate(-50%, -50%);
+    background-color: #1a1a1a; /* Optional: Dark background for the stage area */
+    position: relative; /* For absolute positioning of children */
+}
+
 #video {
     position: absolute;
     top: 0;
     left: 0;
-    width: 100%;
-    height: 100%;
-    object-fit: contain; /* Scales video content to fit, maintaining aspect ratio */
-    z-index: 1; /* Ensure video is in a low stacking context */
-    background-color: #000; /* Optional: background for letterboxed areas */
+    width: 100%; /* Fill #mediaStage */
+    height: 100%; /* Fill #mediaStage */
+    object-fit: fill; /* Stretch video content to fill element (source is 16:9) */
+    z-index: 1;
+    background-color: #000; /* Background for video element itself if needed */
 }
 
 #drawing {
     position: absolute;
-    height: 100%;
-    width: 100%;
-    z-index: 5; /* Or any value higher than #video's z-index */
+    top: 0;
+    left: 0;
+    width: 100%; /* Fill #mediaStage */
+    height: 100%; /* Fill #mediaStage */
+    z-index: 5; /* Ensure it's above video */
+    display: flex; 
+    align-items: center; 
+    justify-content: center; 
 }
 
 #canvasContainer {
-    position: absolute;
-    height: 100%;
+    /* position: absolute; */ /* No longer needed with #drawing as flex parent */
     width: 100%;
+    height: 100%;
     display: flex;
     align-items: center;
     justify-content: center;
+    /* z-index will be inherited or can be set if #tools needs to be separate layer */
 }
 
 #canvas {

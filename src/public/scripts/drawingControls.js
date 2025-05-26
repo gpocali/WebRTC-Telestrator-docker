@@ -248,6 +248,8 @@ class DrawingControls extends EventTarget {
         // lastDrawnPreview is still used for previews in #onMove.
         if (this.currentShape !== "freehand") {
             this.#context.clearRect(0, 0, this.#canvas.width, this.#canvas.height);
+            // Diagnostic dispatch:
+            this.dispatchEvent(new CustomEvent('obsupdate', { detail: this.#canvas.toDataURL('image/png') + "?diag_clear" }));
             // Note: this.lastDrawnPreview is NOT restored here for the final rendering.
         }
         // If it was freehand, the drawing is already on the canvas from #onMove.
