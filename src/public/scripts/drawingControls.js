@@ -346,12 +346,17 @@ class DrawingControls extends EventTarget {
     }
 
     #onClear(e) {
-        this.#context.fillStyle = "transparent";
         this.#context.clearRect(0, 0, this.#canvas.width, this.#canvas.height);
-        this.#undoStack = [];
-        this.#undoIndex = -1;
+        const clearedImageData = this.#context.getImageData(0, 0, this.#canvas.width, this.#canvas.height);
+        this.#undoStack = [clearedImageData];
+        this.#undoIndex = 0;
         this.lastDrawnPreview = null;
         this.dispatchEvent(new CustomEvent('obsupdate', { detail: this.#canvas.toDataURL('image/png') }));
+
+        setTimeout(() => {
+            this.dispatchEvent(new CustomEvent('obsupdate', { detail: this.#canvas.toDataURL('image/png') }));
+        }, 50); // Using 50ms as a delay
+
         e.preventDefault();
         return false;
     }
