@@ -115,9 +115,10 @@ class DrawingControls extends EventTarget {
         this.#webSocket = webSocket;
 
         const video = document.getElementById("video");
-        video.classList.remove("hide");
+        // video.classList.remove("hide"); // Removed, parent #mediaStage will be shown
         document.getElementById("connection").classList.add("hide");
-        document.getElementById("drawing").classList.remove("hide");
+        // document.getElementById("drawing").classList.remove("hide"); // Removed, parent #mediaStage will be shown
+        document.getElementById("mediaStage").classList.remove("hide");
 
         video.addEventListener("resize", (e) => this.#onResize(video));
         window.addEventListener("resize", (e) => this.#onResize(video));
@@ -243,27 +244,21 @@ class DrawingControls extends EventTarget {
         const endPoint = { x: this.#getX(e), y: this.#getY(e) };
         const finalLineWidth = this.#lineWidth * 5 + 1; // Consistent thickness
 
-        // For shapes, instead of restoring lastDrawnPreview for the final draw,
-        // we will clear the canvas and redraw the shape.
-        // lastDrawnPreview is still used for previews in #onMove.
-        if (this.currentShape !== "freehand") {
-            this.#context.clearRect(0, 0, this.#canvas.width, this.#canvas.height);
-            // Diagnostic dispatch:
-            this.dispatchEvent(new CustomEvent('obsupdate', { detail: this.#canvas.toDataURL('image/png') + "?diag_clear" }));
-            // Note: this.lastDrawnPreview is NOT restored here for the final rendering.
+        const finalLineWidth = this.#lineWidth * 5 + 1; // Consistent thickness
+
+        // Restore canvas to state before preview drawing started for shapes
+        if (this.currentShape !== "freehand" && this.lastDrawnPreview) {
+            this.#context.putImageData(this.lastDrawnPreview, 0, 0);
         }
-        // If it was freehand, the drawing is already on the canvas from #onMove.
+        // Note: No full canvas clear here anymore. Any diagnostic dispatch also removed.
 
         const shapeDataForTransmission = this._getShapeDataForTransmission(endPoint);
 
         // Draw the final shape locally (this ensures it's on the canvas before OBS update)
         if (this.currentShape === "freehand") {
             // For freehand, local drawing happened during onMove. Finalize path.
-            // Ensure path is stroked if it wasn't fully closed or if it's a single point.
-            if (this.freehandPoints.length > 0) { // Check if there are points to draw
-                 this.#context.stroke(); 
-            }
-            this.#context.closePath(); // ClosePath is fine even if no new points
+            this.#context.stroke(); // Ensure last segment is drawn if path wasn't closed
+            this.#context.closePath();
         } else if (this.currentShape === "arrow") {
             this._drawArrow(this.#context, shapeDataForTransmission.startX, shapeDataForTransmission.startY, shapeDataForTransmission.endX, shapeDataForTransmission.endY, shapeDataForTransmission.color, finalLineWidth);
         } else if (this.currentShape === "checkmark" || this.currentShape === "x") {
