@@ -1,6 +1,5 @@
 html,
-body,
-video {
+body {
     width: 100%;
     height: 100%;
     margin: 0px;
@@ -43,10 +42,22 @@ body {
     width: 200px;
 }
 
+#video {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: contain; /* Scales video content to fit, maintaining aspect ratio */
+    z-index: 1; /* Ensure video is in a low stacking context */
+    background-color: #000; /* Optional: background for letterboxed areas */
+}
+
 #drawing {
     position: absolute;
     height: 100%;
     width: 100%;
+    z-index: 5; /* Or any value higher than #video's z-index */
 }
 
 #canvasContainer {
