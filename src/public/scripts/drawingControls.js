@@ -242,25 +242,29 @@ class DrawingControls extends EventTarget {
         
         this.#isDrawing = false;
         const endPoint = { x: this.#getX(e), y: this.#getY(e) };
-        const finalLineWidth = this.#lineWidth * 5 + 1; // Consistent thickness
+        const shapeDataForTransmission = this._getShapeDataForTransmission(endPoint); // Define early
+        const finalLineWidth = this.#lineWidth * 5 + 1; // Define early
 
-        // Restore canvas to state before preview drawing started for shapes
-        if (this.currentShape !== "freehand" && this.lastDrawnPreview) {
-            this.#context.putImageData(this.lastDrawnPreview, 0, 0);
-        }
-        // Note: No full canvas clear here anymore. Any diagnostic dispatch also removed.
-
-        const shapeDataForTransmission = this._getShapeDataForTransmission(endPoint);
-
-        // Draw the final shape locally (this ensures it's on the canvas before OBS update)
         if (this.currentShape === "freehand") {
             // For freehand, local drawing happened during onMove. Finalize path.
             this.#context.stroke(); // Ensure last segment is drawn if path wasn't closed
             this.#context.closePath();
-        } else if (this.currentShape === "arrow") {
-            this._drawArrow(this.#context, shapeDataForTransmission.startX, shapeDataForTransmission.startY, shapeDataForTransmission.endX, shapeDataForTransmission.endY, shapeDataForTransmission.color, finalLineWidth);
-        } else if (this.currentShape === "checkmark" || this.currentShape === "x") {
-            this._drawMark(this.#context, shapeDataForTransmission.shape, shapeDataForTransmission.centerX, shapeDataForTransmission.centerY, shapeDataForTransmission.scale, shapeDataForTransmission.color, finalLineWidth);
+        } else { // Logic for shapes (arrow, checkmark, x)
+            // Diagnostic Frame 1: State before any modification for final draw
+            this.dispatchEvent(new CustomEvent('obsupdate', { detail: this.#canvas.toDataURL('image/png') + "?diag_before_put" }));
+
+            if (this.lastDrawnPreview) { // Check lastDrawnPreview before using it
+                this.#context.putImageData(this.lastDrawnPreview, 0, 0);
+            }
+
+            // Diagnostic Frame 2: State after putImageData, before drawing final shape
+            this.dispatchEvent(new CustomEvent('obsupdate', { detail: this.#canvas.toDataURL('image/png') + "?diag_after_put" }));
+
+            if (this.currentShape === "arrow") {
+                this._drawArrow(this.#context, shapeDataForTransmission.startX, shapeDataForTransmission.startY, shapeDataForTransmission.endX, shapeDataForTransmission.endY, shapeDataForTransmission.color, finalLineWidth);
+            } else if (this.currentShape === "checkmark" || this.currentShape === "x") {
+                this._drawMark(this.#context, shapeDataForTransmission.shape, shapeDataForTransmission.centerX, shapeDataForTransmission.centerY, shapeDataForTransmission.scale, shapeDataForTransmission.color, finalLineWidth);
+            }
         }
         
         // Common logic for all shapes
@@ -270,10 +274,11 @@ class DrawingControls extends EventTarget {
         this.freehandPoints = [];    // Clear points for next stroke
 
         // Dispatch event with shape data for main.js to send over WebSocket
+        // Note: shapeDataForTransmission is already defined above
         if (shapeDataForTransmission) {
             this.dispatchEvent(new CustomEvent('drawingcomplete', { detail: shapeDataForTransmission }));
         }
-        // Dispatch event to update OBS
+        // Dispatch event to update OBS (Final, normal dispatch; Diagnostic Frame 3 for shapes)
         this.dispatchEvent(new CustomEvent('obsupdate', { detail: this.#canvas.toDataURL('image/png') }));
 
 
