@@ -440,6 +440,7 @@ class DrawingControls extends EventTarget {
         this.#canvas.style.top = `${offset / 2}px`; // This remains if offset is only vertical top margin
         this.#canvasRect = this.#canvas.getBoundingClientRect();
 
+        this.#context.setTransform(1, 0, 0, 1, 0, 0);
         this.#context.scale(this.#scale.x, this.#scale.y);
 
         // Dispatch obsupdate event after resize and scaling
