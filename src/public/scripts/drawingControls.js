@@ -9,8 +9,8 @@ class DrawingControls extends EventTarget {
     #context;
     /** @type {DOMRect} */
     #canvasRect;
-    /** @type {{x: number, y:number}} */
-    #scale;
+    // /** @type {{x: number, y:number}} */
+    // #scale; // Removed as canvas is now fixed resolution
     /** @type {PointerEvent} */
     #firstPointer;
     /** @type {ImageData[]} */
@@ -43,6 +43,10 @@ class DrawingControls extends EventTarget {
         // Create the canvas context
         this.#canvas = document.getElementById("canvas");
         this.#context = this.#canvas.getContext("2d", { willReadFrequently: true });
+
+        // Set fixed canvas resolution
+        this.#canvas.width = 1920;
+        this.#canvas.height = 1080;
 
         // Listen to pointer events for drawing
         this.#canvas.addEventListener("pointerdown", (e) => this.#onStart(e));
@@ -426,33 +430,20 @@ class DrawingControls extends EventTarget {
         }
     }
 
-    #onResize(video) {
-        const size = this.#getVideoDimensions(video);
-        this.#scale = { x: size.width / video.videoWidth, y: size.height / video.videoHeight };
-
-        const offset = 0; // Hardcoded to 0
-        const inset = 0;  // Hardcoded to 0
-
-        this.#canvas.width = size.width - inset * 2;
-        // Corrected height calculation to use the 'inset' variable consistently for horizontal padding's effect on vertical space if any,
-        // or simply remove its effect if it was only for horizontal. Assuming it was for vertical margin too.
-        // However, the original logic was `size.height - (offset + this.#inset * this.#scale.y);`
-        // If #inset was purely horizontal, then the vertical calculation should only use offset.
-        // Given the names "offsetV" and "insetH", offset was vertical, inset horizontal.
-        // So, the vertical component of inset affecting height should be 0.
-        this.#canvas.height = size.height - offset; // Corrected: inset should not directly reduce height here.
-        this.#canvas.style.left = `${inset}px`;
-        this.#canvas.style.top = `${offset / 2}px`; // This remains if offset is only vertical top margin
+    #onResize(video) { // video parameter might become unused or less relevant for canvas buffer size
+        if (!this.#canvas) return; 
+        
+        // Update canvasRect for mouse coordinate calculations.
+        // The canvas buffer is fixed at 1920x1080.
+        // CSS will handle the visual scaling of the canvas element.
         this.#canvasRect = this.#canvas.getBoundingClientRect();
+        
+        // No more canvas.width/height changes here based on video or parent size.
+        // No more context.setTransform() or context.scale() here. The context operates on the 1920x1080 buffer.
 
-        this.#context.setTransform(1, 0, 0, 1, 0, 0);
-        this.#context.scale(this.#scale.x, this.#scale.y);
-
-        // Dispatch obsupdate event after resize and scaling
-        // This will send the current state of the canvas (which might be blank or need redrawing)
-        // The current logic doesn't explicitly redraw all content on resize,
-        // so OBS will reflect the cleared/scaled canvas.
-        // If content needs to be preserved and redrawn, that logic would go before this dispatch.
+        // Dispatch an obsupdate event. This is important if, for example,
+        // the canvas was cleared and needs to reflect that, or if other UI changes
+        // related to resize need to trigger an update of the (now fixed-size) canvas.
         this.dispatchEvent(new CustomEvent('obsupdate', { detail: this.#canvas.toDataURL('image/png') }));
     }
 
@@ -472,13 +463,21 @@ class DrawingControls extends EventTarget {
     }
 
     #getX(e) {
-        let x = e.pageX - this.#canvasRect.left;
-        return x / this.#scale.x;
+        // e.pageX is the mouse position relative to the document.
+        // this.#canvasRect.left is the canvas's left offset from the document's left.
+        // (e.pageX - this.#canvasRect.left) is the mouse X relative to the CSS-scaled canvas.
+        // We then scale this up to the 1920px buffer width.
+        let x = (e.pageX - this.#canvasRect.left) * (this.#canvas.width / this.#canvasRect.width);
+        return x;
     }
 
     #getY(e) {
-        let y = e.clientY - this.#canvasRect.top;
-        return y / this.#scale.y;
+        // e.clientY is the mouse position relative to the document.
+        // this.#canvasRect.top is the canvas's top offset from the document's top.
+        // (e.clientY - this.#canvasRect.top) is the mouse Y relative to the CSS-scaled canvas.
+        // We then scale this up to the 1080px buffer height.
+        let y = (e.clientY - this.#canvasRect.top) * (this.#canvas.height / this.#canvasRect.height);
+        return y;
     }
 
     /**
