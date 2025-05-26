@@ -39,7 +39,7 @@ class DrawingControls extends EventTarget {
         super(); // Add this line
         this.currentShapeBaseSize = this.#lineWidth; // Initialize with current lineWidth
         this.obsUpdateTimeout = null;
-        this.obsUpdateInterval = 50; // ms, for throttling
+        this.obsUpdateInterval = 33; // ms, for throttling (approx 30 FPS)
         // Create the canvas context
         this.#canvas = document.getElementById("canvas");
         this.#context = this.#canvas.getContext("2d", { willReadFrequently: true });
