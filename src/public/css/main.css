@@ -53,54 +53,54 @@ body {
     align-items: center;
     justify-content: center;
     overflow: hidden; 
-    background-color: #222; /* ADDED background for drawing area */
+    background-color: #222; /* Existing color */
 }
 
-/* NEW SCALING LOGIC for #video and #canvasContainer */
-#canvasContainer, #video {
-    width: 1920px;  /* Intrinsic width */
-    height: 1080px; /* Intrinsic height */
-    max-width: 100%; /* Scale down to fit #drawing (parent) */
-    max-height: 100%;/* Scale down to fit #drawing (parent) */
-    position: absolute; /* Stack them within #drawing */
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%); /* Center them */
+#canvasContainer { /* This is inside #drawing */
+    width: 1920px; 
+    height: 1080px; 
+    max-width: 100%; 
+    max-height: 100%;
+    position: relative; /* Changed from absolute to relative */
 }
 
-#video { /* MODIFIED */
-    z-index: 1;
-    object-fit: contain; /* Fit video content within its box, maintain aspect ratio */
-    /* background-color: black; /* Optional: if video doesn't fill, show black bg */
-}
-
-#canvasContainer { /* MODIFIED - now positions the canvas */
-    z-index: 2;
-    /* No flex needed if canvas fills it by width/height 100% */
-}
-
-#canvas { /* MODIFIED */
+#video { /* This is inside #canvasContainer */
+    position: absolute;
+    top: 0;
+    left: 0;
     width: 100%; /* Fill #canvasContainer */
     height: 100%; /* Fill #canvasContainer */
-    background: transparent; /* ENSURED */
-    display: block; /* Good practice for canvas */
-    /* image-rendering: pixelated; /* Optional for sharper scaling */
-    /* Removed: position:relative, touch-action:none (can be re-added if needed) */
+    object-fit: contain; 
+    z-index: 1; /* Behind canvas */
+    background-color: #000; /* Add a black background for debugging */
 }
-/* Removed: #canvas.cover */
 
+#canvas { /* This is inside #canvasContainer */
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%; /* Fill #canvasContainer */
+    height: 100%; /* Fill #canvasContainer */
+    z-index: 2; /* In front of video, within #canvasContainer */
+    background: transparent;
+    pointer-events: auto; /* Explicitly enable pointer events on canvas */
+}
 
-#tools { /* MODIFIED SIGNIFICANTLY */
-    padding: 8px; /* Adjusted padding */
-    background-color: #444;
-    text-align: center;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    flex-wrap: wrap; /* Allow tools to wrap on smaller screens */
-    flex-shrink: 0; /* Prevent tools bar from shrinking */
-    gap: 8px; /* Spacing between tool items */
-    /* Removed: top:0, position:absolute, width:100%, pointer-events:none */
+#tools { 
+    /* flex-shrink: 0; /* Is default if parent is flex and this is not flex-grow */
+    padding: 8px; 
+    background-color: #444; 
+    width: 100%; /* Full width */
+    text-align: center; 
+    z-index: 10; /* Ensure tools are above other content */
+    position: relative; /* Required for z-index */
+    /* border-bottom: 1px solid #222; /* Optional: separator */
+    display: flex; /* Kept from previous version */
+    justify-content: center; /* Kept */
+    align-items: center; /* Kept */
+    flex-wrap: wrap; /* Kept */
+    gap: 8px; /* Kept */
+    box-sizing: border-box; /* Added to ensure padding doesn't expand width */
 }
 
 /* UNIFIED STYLING for tool items */
