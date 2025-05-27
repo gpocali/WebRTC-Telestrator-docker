@@ -29,15 +29,20 @@ class WebConnection extends EventTarget {
 
         // Host will select a window to share
         if (this.#isHost) {
-            this.#stream = await navigator.mediaDevices.getDisplayMedia({
-                video: {
-                    displaySurface: "window",
-                },
-                audio: false,
-            });
-
-            for (const track of this.#stream.getTracks()) {
-                this.#pc.addTrack(track, this.#stream);
+            try {
+                this.#stream = await navigator.mediaDevices.getDisplayMedia({
+                    video: { displaySurface: "window" },
+                    audio: false,
+                });
+                console.log("[WebConnection] Media stream obtained:", this.#stream);
+                if (this.#stream) {
+                    console.log("[WebConnection] Media stream tracks:", this.#stream.getTracks());
+                    for (const track of this.#stream.getTracks()) {
+                        this.#pc.addTrack(track, this.#stream);
+                    }
+                }
+            } catch (err) {
+                console.error("[WebConnection] Error obtaining display media:", err);
             }
         }
 
@@ -59,7 +64,15 @@ class WebConnection extends EventTarget {
             const video = document.getElementById("video");
             video.autoplay = true;
             video.srcObject = this.#stream;
-            video.classList.remove("hide");
+            console.log("[WebConnection] video.srcObject set:", video.srcObject);
+            if (video.srcObject) {
+                console.log("[WebConnection] Video properties after srcObject set: readyState:", video.readyState, "networkState:", video.networkState, "error:", video.error);
+                video.onloadedmetadata = () => console.log("[WebConnection] Video metadata loaded. Video dimensions:", video.videoWidth, "x", video.videoHeight);
+                video.oncanplay = () => console.log("[WebConnection] Video can play.");
+                video.onplaying = () => console.log("[WebConnection] Video is playing.");
+                video.onerror = (e) => console.error("[WebConnection] Video element error:", e, video.error);
+            }
+            video.classList.remove("hide"); // This might be overridden by CSS or other logic, but good to have for direct control here.
 
             this.dispatchEvent(new CustomEvent("connected", { detail: this.#dataChannel }));
         };

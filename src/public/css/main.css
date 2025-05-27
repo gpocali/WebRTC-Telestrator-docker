@@ -72,7 +72,7 @@ body {
     height: 100%; /* Fill #canvasContainer */
     object-fit: contain; 
     z-index: 1; /* Behind canvas */
-    background-color: #000; /* Add a black background for debugging */
+    background-color: lime; /* Temporary for debugging */
 }
 
 #canvas { /* This is inside #canvasContainer */
