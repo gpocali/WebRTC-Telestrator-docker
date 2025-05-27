@@ -19,13 +19,16 @@
     <video id="video" class="hide"></video>
     <div id="drawing" class="hide">
         <div id="canvasContainer">
-            <canvas id="canvas"></canvas>
+            <canvas id="canvas" width="1920" height="1080"></canvas>
         </div>
         <div id="tools">
-            <input id="offset" type="number" value="12" />
-            <input id="inset" type="number" value="1" />
             <button id="clear" title="clear">&#8855;</button>
             <button id="undo" title="undo">&#10226;</button>
+
+            <button id="toolPencil" title="Pencil">&#9998;</button>
+            <button id="toolArrow" title="Arrow">&#8594;</button>
+            <button id="toolCheckmark" title="Checkmark">&#10003;</button>
+            <button id="toolX" title="X Symbol">&#10007;</button>
 
             <div class="colorOption" style="background:white"></div>
             <div class="colorOption" style="background:black"></div>

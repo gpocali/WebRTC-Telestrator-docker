@@ -9,20 +9,22 @@ class DrawingControls {
     #context;
     /** @type {DOMRect} */
     #canvasRect;
-    /** @type {{x: number, y:number}} */
-    #scale;
+    // #scale property removed
     /** @type {PointerEvent} */
     #firstPointer;
     /** @type {ImageData[]} */
-    #undoStack = [];
-    #undoIndex = -1;
+    #undoStack = []; // Remains for now, but not effectively used
+    #undoIndex = -1; // Remains for now, but not effectively used
     #lineColor = "black";
-    #lineWidth = 1;
+    #lineWidth = 1; // Stores raw slider value (0-10)
+    #currentTool = "pencil"; // Added property
+    #arrowStartPoint = null; // Added property
+    toolButtons = []; // Added property for managing tool button states
     #isDrawing = false;
-    #hasCanvasChanged = false;
-    #offset = 20;
-    #inset = 1;
-    #frameTimeout = null;
+    // #hasCanvasChanged = false; // Appears unused, removing
+    // #offset property removed
+    // #inset property removed
+    #frameTimeout = null; // Related to old PNG sending, may be removed if #sendData changes completely
 
     /**
      * Create an instance of the drawing controls
@@ -31,7 +33,10 @@ class DrawingControls {
     constructor(isDebugMode) {
         // Create the canvas context
         this.#canvas = document.getElementById("canvas");
+        this.#canvas.width = 1920; // Fixed resolution
+        this.#canvas.height = 1080; // Fixed resolution
         this.#context = this.#canvas.getContext("2d", { willReadFrequently: true });
+        this.#canvasRect = this.#canvas.getBoundingClientRect(); // Initial rect
 
         // Listen to pointer events for drawing
         this.#canvas.addEventListener("pointerdown", (e) => this.#onStart(e));
@@ -40,25 +45,10 @@ class DrawingControls {
         this.#canvas.addEventListener("pointerout", (e) => this.#onStop(e));
 
         // Load settings
-        const loadedOffset = localStorage.getItem("offset");
-        if (typeof loadedOffset === "string") {
-            this.#offset = parseInt(loadedOffset);
-        }
-        const offsetControl = document.getElementById("offset");
-        offsetControl.addEventListener("change", (e) => this.#onOffsetChange(e));
-        offsetControl.value = this.#offset;
-
-        const loadedInset = localStorage.getItem("inset");
-        if (typeof loadedInset === "string") {
-            this.#inset = parseInt(loadedInset);
-        }
-        const insetControl = document.getElementById("inset");
-        insetControl.addEventListener("change", (e) => this.#onInsetChange(e));
-        insetControl.value = this.#inset;
-
+        // Offset and Inset loading removed
         const lineWidth = localStorage.getItem("lineWidth");
         if (typeof lineWidth === "string") {
-            this.#lineWidth = parseInt(lineWidth);
+            this.#lineWidth = parseInt(lineWidth); // Store raw value (0-10)
         }
         const lineWidthControl = document.getElementById("lineWidth");
         lineWidthControl.addEventListener("change", (e) => this.#onLineWidthChange(e));
@@ -67,7 +57,7 @@ class DrawingControls {
         const lineColor = localStorage.getItem("lineColor");
         if (typeof lineColor === "string") {
             this.#lineColor = lineColor;
-            this.#onLineColorChange(this.#lineColor);
+            this.#onLineColorChange(this.#lineColor); // This method updates UI selectors
         }
 
         document.querySelectorAll(".colorOption").forEach((element) => {
@@ -81,9 +71,40 @@ class DrawingControls {
         document.getElementById("undo").addEventListener("click", (e) => this.#onUndo(e));
         document.getElementById("clear").addEventListener("click", (e) => this.#onClear(e));
 
+        // Tool selection buttons
+        const pencilButton = document.getElementById("toolPencil");
+        const arrowButton = document.getElementById("toolArrow");
+        const checkmarkButton = document.getElementById("toolCheckmark");
+        const xButton = document.getElementById("toolX");
+
+        this.toolButtons = [pencilButton, arrowButton, checkmarkButton, xButton];
+
+        pencilButton.addEventListener("click", () => this.#selectTool("pencil", pencilButton));
+        arrowButton.addEventListener("click", () => this.#selectTool("arrow", arrowButton));
+        checkmarkButton.addEventListener("click", () => this.#selectTool("checkmark", checkmarkButton));
+        xButton.addEventListener("click", () => this.#selectTool("x", xButton));
+
+        this.#selectTool("pencil", pencilButton); // Select pencil by default
+
         if (isDebugMode) {
             this.enable(null, null);
         }
+    }
+
+    #selectTool(toolName, selectedButton) {
+        this.#currentTool = toolName;
+
+        // Update visual feedback for selected tool
+        this.toolButtons.forEach(button => {
+            if (button === selectedButton) {
+                button.classList.add("selected");
+            } else {
+                button.classList.remove("selected");
+            }
+        });
+
+        // Optional: Log the selected tool
+        console.log("Tool selected:", this.#currentTool);
     }
 
     /**
@@ -112,53 +133,91 @@ class DrawingControls {
      * Draw to the canvas using json payload
      * @param {any} e 
      */
-    drawToCanvas(e) {
-        switch (e.action) {
-            case "resize":
-                this.#canvas.width = e.width;
-                this.#canvas.height = e.height;
-                this.#canvasRect = this.#canvas.getBoundingClientRect();
-                break;
+    drawToCanvas(command) {
+        // command would be like { action: "start" / "move" / "stop" / "draw", tool, x, y, color, size, startX, startY, endX, endY }
+        this.#context.strokeStyle = command.color;
+        this.#context.fillStyle = command.color; // For filled shapes like arrowheads, checkmark, X
+        const calculatedLineWidth = command.size * 5 + 1; // Example scaling
+        this.#context.lineWidth = calculatedLineWidth;
+        this.#context.lineCap = "round"; // Default for most tools
+        this.#context.lineJoin = "round"; // Default for most tools
 
-            case "start":
+        switch (command.action) {
+            case "start": // Pencil only
                 this.#context.beginPath();
-                this.#context.moveTo(e.x, e.y);
+                this.#context.moveTo(command.x, command.y);
                 break;
-
-            case "move":
-                this.#context.lineTo(e.x, e.y);
-                this.#context.strokeStyle = e.lineStyle;
-                this.#context.lineWidth = e.lineWidth * 5 + 1;
-                this.#context.lineCap = "round";
-                this.#context.lineJoin = "round";
+            case "move": // Pencil only
+                this.#context.lineTo(command.x, command.y);
                 this.#context.stroke();
                 break;
-
-            case "stop":
+            case "stop": // Pencil only
                 this.#context.stroke();
                 this.#context.closePath();
                 break;
+            case "draw": // For new tools (arrow, checkmark, x)
+                switch (command.tool) {
+                    case "arrow":
+                        this.#context.beginPath();
+                        this.#context.moveTo(command.startX, command.startY);
+                        this.#context.lineTo(command.endX, command.endY);
+                        // Basic arrowhead (can be improved)
+                        const angle = Math.atan2(command.endY - command.startY, command.endX - command.startX);
+                        const headlen = 15 * (command.size / 5 + 1); // Scale arrowhead with size
+                        this.#context.lineTo(command.endX - headlen * Math.cos(angle - Math.PI / 6), command.endY - headlen * Math.sin(angle - Math.PI / 6));
+                        this.#context.moveTo(command.endX, command.endY);
+                        this.#context.lineTo(command.endX - headlen * Math.cos(angle + Math.PI / 6), command.endY - headlen * Math.sin(angle + Math.PI / 6));
+                        this.#context.stroke();
+                        this.#context.closePath();
+                        break;
+                    case "checkmark":
+                        // Basic checkmark (size based on command.size)
+                        const chkSize = 20 * (command.size / 5 + 1);
+                        this.#context.beginPath();
+                        this.#context.moveTo(command.x - chkSize / 2, command.y);
+                        this.#context.lineTo(command.x, command.y + chkSize / 2);
+                        this.#context.lineTo(command.x + chkSize, command.y - chkSize / 2);
+                        this.#context.stroke();
+                        this.#context.closePath();
+                        break;
+                    case "x":
+                        // Basic X (size based on command.size)
+                        const xSize = 20 * (command.size / 5 + 1);
+                        this.#context.beginPath();
+                        this.#context.moveTo(command.x - xSize / 2, command.y - xSize / 2);
+                        this.#context.lineTo(command.x + xSize / 2, command.y + xSize / 2);
+                        this.#context.moveTo(command.x + xSize / 2, command.y - xSize / 2);
+                        this.#context.lineTo(command.x - xSize / 2, command.y + xSize / 2);
+                        this.#context.stroke();
+                        this.#context.closePath();
+                        break;
+                }
+                break;
+            case "clear":
+                this.#context.clearRect(0, 0, this.#canvas.width, this.#canvas.height);
+                break;
+            // Removed resize case as it's not expected with fixed canvas resolution
         }
     }
 
-    #sendData(payload, useDoubleBuffer) {
-        // Update the data flag after the canvas has rendered one frame
-        if (!this.#frameTimeout && this.#webSocket) {
-            this.#frameTimeout = setTimeout(() => {
-                const data = this.#canvas.toDataURL("image/png");
-                this.#webSocket.send(data);
-
-                if (useDoubleBuffer) {
-                    this.#webSocket.send(data);
-                }
-
-                this.#frameTimeout = null;
-            }, 10);
+    #sendData(payload) { // Removed useDoubleBuffer
+        // PNG sending logic removed
+        if (this.#webSocket && payload) {
+            // Add tool, color, and size to every drawing action payload
+            const fullPayload = {
+                ...payload,
+                tool: this.#currentTool, // Use the dynamic current tool
+                color: this.#lineColor,
+                size: this.#lineWidth // This is the 0-10 range value
+            };
+            this.#webSocket.send(JSON.stringify(fullPayload));
         }
-
-        if (this.#dataChannel && payload) {
-            this.#dataChannel.send(JSON.stringify(payload));
-        }
+        // The dataChannel part is for host to see client drawings.
+        // If this is still needed, it should also send the fullPayload.
+        // For now, assuming primary communication is WebSocket.
+        // if (this.#dataChannel && payload) {
+        //     this.#dataChannel.send(JSON.stringify(fullPayload));
+        // }
     }
 
     #onStart(e) {
@@ -166,21 +225,43 @@ class DrawingControls {
             e.preventDefault();
             return false;
         }
-
         this.#firstPointer = e;
         const x = this.#getX(e);
         const y = this.#getY(e);
 
-        this.#isDrawing = true;
-        this.#context.beginPath();
-        this.#context.moveTo(x, y);
+        // Set styles for local drawing (will be applied if the tool draws locally)
+        this.#context.strokeStyle = this.#lineColor;
+        this.#context.lineWidth = this.#lineWidth * 5 + 1;
+        this.#context.lineCap = "round";
+        this.#context.lineJoin = "round";
 
-        this.#sendData({
-            action: "start",
-            x,
-            y
-        });
-
+        switch (this.#currentTool) {
+            case "pencil":
+                this.#isDrawing = true;
+                this.#context.beginPath();
+                this.#context.moveTo(x, y);
+                this.#sendData({ action: "start", x, y });
+                break;
+            case "arrow":
+                this.#arrowStartPoint = { x, y };
+                this.#isDrawing = true; // For local preview in #onMove
+                // Optional: For local preview of arrow line start
+                // this.#context.beginPath();
+                // this.#context.moveTo(x, y);
+                break;
+            case "checkmark":
+                this.#sendData({ action: "draw", x, y }); // tool, color, size added by #sendData
+                // Local draw for immediate feedback
+                this.drawToCanvas({ action: "draw", tool: "checkmark", x, y, color: this.#lineColor, size: this.#lineWidth });
+                this.#isDrawing = false; // Not a dragging tool
+                break;
+            case "x":
+                this.#sendData({ action: "draw", x, y }); // tool, color, size added by #sendData
+                // Local draw for immediate feedback
+                this.drawToCanvas({ action: "draw", tool: "x", x, y, color: this.#lineColor, size: this.#lineWidth });
+                this.#isDrawing = false; // Not a dragging tool
+                break;
+        }
         e.preventDefault();
         return false;
     }
@@ -189,79 +270,101 @@ class DrawingControls {
         if (this.#firstPointer && e.pointerId !== this.#firstPointer.pointerId) {
             return false;
         }
+        if (!this.#isDrawing) return false; // Only move if drawing is active
 
-        if (this.#isDrawing) {
-            const x = this.#getX(e);
-            const y = this.#getY(e);
-            this.#context.lineTo(x, y);
-            this.#context.strokeStyle = this.#lineColor;
-            this.#context.lineWidth = this.#lineWidth * 5 + 1;
-            this.#context.lineCap = "round";
-            this.#context.lineJoin = "round";
-            this.#context.stroke();
+        const x = this.#getX(e);
+        const y = this.#getY(e);
 
-            this.#sendData({
-                action: "move",
-                x,
-                y,
-                strokeStyle: this.#lineColor,
-                lineWidth: this.#lineWidth
-            });
+        switch (this.#currentTool) {
+            case "pencil":
+                this.#context.lineTo(x, y);
+                this.#context.stroke(); // Local drawing
+                this.#sendData({ action: "move", x, y }); // tool, color, size added by #sendData
+                break;
+            case "arrow":
+                if (this.#arrowStartPoint) {
+                    // Optional: Local preview logic for arrow
+                    // (Clear previous preview and draw line from this.#arrowStartPoint to current x,y)
+                    // This part is not sending data, only for local visual feedback.
+                    // Example:
+                    // this.#context.clearRect(0, 0, this.#canvas.width, this.#canvas.height); // Might need to redraw history if clearing full canvas
+                    // this.#context.beginPath();
+                    // this.#context.moveTo(this.#arrowStartPoint.x, this.#arrowStartPoint.y);
+                    // this.#context.lineTo(x, y);
+                    // this.#context.stroke();
+                }
+                break;
         }
-
         e.preventDefault();
         return false;
     }
 
     #onStop(e) {
         if (this.#firstPointer && e.pointerId !== this.#firstPointer.pointerId) {
+            // If this is a multi-touch scenario and not the primary pointer, ignore.
+            // However, for single pointer drawing, this might not be strictly necessary
+            // if #firstPointer is always cleared correctly.
             return false;
         }
 
-        this.#firstPointer = null;
-        if (this.#isDrawing) {
-            this.#context.stroke();
-            this.#context.closePath();
-            this.#isDrawing = false;
+        const x = this.#getX(e); // Get final coordinates if needed
+        const y = this.#getY(e);
 
-            this.#undoStack.push(this.#context.getImageData(0, 0, this.#canvas.width, this.#canvas.height));
-            this.#undoIndex++;
-
-            this.#sendData({
-                action: "stop"
-            }, true);
+        switch (this.#currentTool) {
+            case "pencil":
+                if (this.#isDrawing) {
+                    this.#context.stroke(); // Ensure last segment is drawn locally
+                    this.#context.closePath();
+                    this.#sendData({ action: "stop" });
+                }
+                break;
+            case "arrow":
+                if (this.#isDrawing && this.#arrowStartPoint) {
+                    // Send the final arrow command
+                    this.#sendData({
+                        action: "draw", // "draw" action for shapes
+                        startX: this.#arrowStartPoint.x,
+                        startY: this.#arrowStartPoint.y,
+                        endX: x,
+                        endY: y
+                    });
+                    // Local draw for immediate feedback (optional, if not relying on server echo for drawer)
+                    this.drawToCanvas({ action: "draw", tool: "arrow", startX: this.#arrowStartPoint.x, startY: this.#arrowStartPoint.y, endX: x, endY: y, color: this.#lineColor, size: this.#lineWidth });
+                    this.#arrowStartPoint = null;
+                }
+                break;
+            case "checkmark":
+            case "x":
+                // No action needed in onStop for these point-and-click tools
+                break;
         }
+
+        this.#isDrawing = false; // Reset drawing state for all tools
+        this.#firstPointer = null; // Reset first pointer
 
         e.preventDefault();
         return false;
     }
 
     #onUndo(e) {
-        if (this.#undoIndex <= 0) {
-            this.#onClear(e);
-        } else {
-            this.#undoIndex--;
-            this.#undoStack.pop();
-            if (e.type !== "mouseout") {
-                this.#context.putImageData(this.#undoStack[this.#undoIndex], 0, 0);
-            }
+        // For #onUndo and #onClear, send a specific clear command for now
+        // This will be picked up by server.js and broadcast as { type: "clear_canvas" }
+        // No payload needed beyond the action for the server to recognize it.
+        if (this.#webSocket) {
+            this.#webSocket.send(JSON.stringify({ action: "clear" }));
         }
-
-        this.#sendData(null, true);
+        // Local canvas clear will happen when the message comes back from the server.
+        // Or, if this is the client page, it won't clear locally until server message.
 
         e.preventDefault();
         return false;
     }
 
     #onClear(e) {
-        this.#context.fillStyle = "transparent";
-
-        this.#context.clearRect(0, 0, canvas.width * 1 / this.#scale.x, canvas.height * 1 / this.#scale.y);
-        this.#context.fillRect(0, 0, canvas.width * 1 / this.#scale.x, canvas.height * 1 / this.#scale.y);
-        this.#undoStack = [];
-        this.#undoIndex = -1;
-
-        this.#sendData(null, true);
+        if (this.#webSocket) {
+            this.#webSocket.send(JSON.stringify({ action: "clear" }));
+        }
+        // Local canvas clear will happen when the message comes back from the server.
 
         e.preventDefault();
         return false;
@@ -299,35 +402,13 @@ class DrawingControls {
         }
     }
 
-    #onOffsetChange(e) {
-        this.#offset = parseInt(e.target.value);
-        this.#onResize(document.getElementById("video"));
-        this.#canvas.classList.add("cover");
-
-        clearTimeout(this.offsetBackgroundTimer);
-        this.offsetBackgroundTimer = setTimeout(() => {
-            this.#canvas.classList.remove("cover");
-        }, 750);
-
-        localStorage.setItem("offset", this.#offset);
-    }
-
-    #onInsetChange(e) {
-        this.#inset = parseInt(e.target.value);
-        this.#onResize(document.getElementById("video"));
-        this.#canvas.classList.add("cover");
-
-        clearTimeout(this.offsetBackgroundTimer);
-        this.offsetBackgroundTimer = setTimeout(() => {
-            this.#canvas.classList.remove("cover");
-        }, 750);
-
-        localStorage.setItem("inset", this.#inset);
-    }
+    // #onOffsetChange method removed
+    // #onInsetChange method removed
 
     #onLineWidthChange(e) {
-        this.#lineWidth = parseInt(e.target.value);
+        this.#lineWidth = parseInt(e.target.value); // Store raw value (0-10)
         localStorage.setItem("lineWidth", this.#lineWidth);
+        // No direct context change here, it's used when sending data and local drawing.
     }
 
     #onLineColorChange(color) {
@@ -353,52 +434,25 @@ class DrawingControls {
         }
     }
 
-    #onResize(video) {
-        const size = this.#getVideoDimensions(video);
-        this.#scale = { x: size.width / video.videoWidth, y: size.height / video.videoHeight };
-
-        const offset = this.#offset * this.#scale.y;
-        const inset = this.#inset * this.#scale.x;
-
-        this.#canvas.width = size.width - inset * 2;
-        this.#canvas.height = size.height - (offset + this.#inset * this.#scale.y);
-        this.#canvas.style.left = `${inset}px`;
-        this.#canvas.style.top = `${offset / 2}px`;
+    #onResize(video) { // video parameter might not be strictly needed anymore
         this.#canvasRect = this.#canvas.getBoundingClientRect();
-
-        this.#context.scale(this.#scale.x, this.#scale.y);
-
-        this.#sendData(JSON.stringify({
-            action: "resize",
-            width: size.width,
-            height: size.height,
-            videoWidth: video.videoWidth,
-            videoHeight: video.videoHeight
-        }));
+        // The rest of the logic related to video dimensions, scaling the context,
+        // and sending resize events has been removed.
+        // Redrawing logic for local canvas might be needed if drawings disappear on resize,
+        // but server is the source of truth.
     }
 
-    #getVideoDimensions(video) {
-        const videoRatio = video.videoWidth / video.videoHeight;
-        let width = video.offsetWidth
-        let height = video.offsetHeight;
-        const elementRatio = width / height;
-
-        if (elementRatio > videoRatio) {
-            width = height * videoRatio;
-        } else {
-            height = width / videoRatio;
-        }
-
-        return { width, height };
-    }
+    // #getVideoDimensions method removed as it's part of old #onResize logic
 
     #getX(e) {
-        let x = e.pageX - this.#canvasRect.left;
-        return x / this.#scale.x;
+        const rect = this.#canvasRect; // Use the stored rect, update on resize
+        const canvasLogicalWidth = this.#canvas.width;
+        return (e.pageX - rect.left) * (canvasLogicalWidth / rect.width);
     }
 
     #getY(e) {
-        let y = e.clientY - this.#canvasRect.top;
-        return y / this.#scale.y;
+        const rect = this.#canvasRect; // Use the stored rect, update on resize
+        const canvasLogicalHeight = this.#canvas.height;
+        return (e.pageY - rect.top) * (canvasLogicalHeight / rect.height); // Use pageY
     }
 }

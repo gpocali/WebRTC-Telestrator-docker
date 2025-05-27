@@ -1,166 +1,205 @@
-html,
-body,
-video {
+html, body { /* Simplified initial setup */
     width: 100%;
     height: 100%;
-    margin: 0px;
-    padding: 0px;
+    margin: 0;
+    padding: 0;
     box-sizing: border-box;
-    overflow: hidden;
+    overflow: hidden; /* Applied to body as well */
+    font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; /* Moved from body to here */
+}
+
+video { /* Base for video, specific sizing later */
+    display: block; /* remove extra space below video */
 }
 
 body {
-    background-color: #455;
-    font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+    background-color: #333; /* UPDATED */
     display: flex;
-    justify-content: center;
-    align-items: center;
-    min-height: 100vh;
+    flex-direction: column; /* Stack drawing area and tools vertically */
+    height: 100vh; /* Ensure body takes full viewport height */
+    /* Removed: justify-content, align-items, min-height from old body */
 }
 
 #connection {
-    text-align: center; /* Center contents horizontally */
+    text-align: center; 
     display: flex;
-    flex-direction: column; /* Stack title and buttons vertically */
-    align-items: center; /* Center contents vertically */
+    flex-direction: column; 
+    align-items: center; 
+    justify-content: center; /* Added to center content if connection div takes full height */
+    flex-grow: 1; /* Added to allow it to take space if needed */
+    color: white; /* Added for text color */
 }
 
-#title {
+#title { /* Largely kept, ensure it works with flex parent */
     font-size: 5em;
     color: white;
-    display: block;
-    text-align: center;
-    margin-top: -100px;
-    margin-bottom: 100px;
+    margin-bottom: 50px; /* Reduced margin */
+    /* Removed: display:block, margin-top as flex handles centering */
 }
 
 #connection button,
 #connection input {
     font-size: 1em;
     padding: 0.5em 1em;
-    margin-bottom: 40px;
-    display: block;
+    margin-bottom: 20px; /* Reduced margin */
+    display: block; /* Kept */
     width: 200px;
 }
 
-#drawing {
-    position: absolute;
-    height: 100%;
-    width: 100%;
-}
-
-#canvasContainer {
-    position: absolute;
-    height: 100%;
-    width: 100%;
+#drawing { /* MODIFIED SIGNIFICANTLY */
+    flex-grow: 1; 
+    position: relative; 
     display: flex;
     align-items: center;
     justify-content: center;
+    overflow: hidden; 
+    background-color: #222; /* ADDED background for drawing area */
 }
 
-#canvas {
-    position: relative;
-    touch-action: none;
-}
-#canvas.cover {
-    background-color: #AAAAFFAA;
+/* NEW SCALING LOGIC for #video and #canvasContainer */
+#canvasContainer, #video {
+    width: 1920px;  /* Intrinsic width */
+    height: 1080px; /* Intrinsic height */
+    max-width: 100%; /* Scale down to fit #drawing (parent) */
+    max-height: 100%;/* Scale down to fit #drawing (parent) */
+    position: absolute; /* Stack them within #drawing */
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%); /* Center them */
 }
 
-#tools {
-    top: 0;
-    position: absolute;
+#video { /* MODIFIED */
+    z-index: 1;
+    object-fit: contain; /* Fit video content within its box, maintain aspect ratio */
+    /* background-color: black; /* Optional: if video doesn't fill, show black bg */
+}
+
+#canvasContainer { /* MODIFIED - now positions the canvas */
+    z-index: 2;
+    /* No flex needed if canvas fills it by width/height 100% */
+}
+
+#canvas { /* MODIFIED */
+    width: 100%; /* Fill #canvasContainer */
+    height: 100%; /* Fill #canvasContainer */
+    background: transparent; /* ENSURED */
+    display: block; /* Good practice for canvas */
+    /* image-rendering: pixelated; /* Optional for sharper scaling */
+    /* Removed: position:relative, touch-action:none (can be re-added if needed) */
+}
+/* Removed: #canvas.cover */
+
+
+#tools { /* MODIFIED SIGNIFICANTLY */
+    padding: 8px; /* Adjusted padding */
+    background-color: #444;
+    text-align: center;
     display: flex;
     justify-content: center;
     align-items: center;
-    width: 100%;
-    pointer-events: none;
+    flex-wrap: wrap; /* Allow tools to wrap on smaller screens */
+    flex-shrink: 0; /* Prevent tools bar from shrinking */
+    gap: 8px; /* Spacing between tool items */
+    /* Removed: top:0, position:absolute, width:100%, pointer-events:none */
 }
 
-#tools > * {
-    pointer-events: all;
-}
-
-#tools .colorOption {
-    width: 3em;
-    height: 3em;
-    display: inline-block;
-    margin: 5px;
-    border-radius: 10px;
-    border: 2px solid #555555;
+/* UNIFIED STYLING for tool items */
+#tools button, 
+#tools input[type="color"], 
+#tools .colorOption { /* Unified base for clickable/interactive tool items */
+    padding: 5px;
+    height: 42px; /* Uniform height */
     box-sizing: border-box;
+    border: 2px solid #666; /* Slightly darker border */
+    background-color: #5a5a5a; /* Darker buttons */
+    color: #f0f0f0; /* Light text/icons */
+    cursor: pointer;
+    border-radius: 4px; /* Softer edges */
+    font-size: 1.2em; /* Base font size for icons/text in buttons */
+    display: inline-flex; /* For aligning icons/text inside if any */
+    align-items: center;
+    justify-content: center;
 }
 
-#tools .colorOption.selected {
-    border-color: #7373e8;
-    border-width: 4px;
+#tools button:hover, 
+#tools input[type="color"]:hover, 
+#tools .colorOption:hover {
+    background-color: #6c6c6c; /* Slightly lighter on hover */
+    border-color: #888;
 }
 
+#tools button.selected { /* Style for selected tool buttons */
+    background-color: #007bff;
+    color: white;
+    border-color: #0056b3;
+}
+
+/* Specifics for color options */
+#tools .colorOption {
+    width: 42px; /* Square buttons */
+}
+#tools .colorOption.selected { /* For selected color options */
+    border-color: #7373e8; /* Keep existing selected color for distinction */
+    border-width: 3px;
+}
 
 #tools #colorPicker {
-    border: 2px solid #555555;
-    box-sizing: border-box;
+    width: 42px; 
+    padding: 2px; /* Adjust padding for color input */
 }
-
 #tools #colorPicker.selected {
-    border-color: #7373e8;
-    border-width: 4px;
+    border-color: #7373e8; /* Match colorOption selection */
+    border-width: 3px;
 }
 
-#tools input {
-    width: 45px;
-    height: 45px;
-    font-size: 1.75em;
-    margin: 5px;
+#tools input[type="range"]#lineWidth {
+    width: 130px; /* Adjusted width */
+    height: 42px; /* Match button height for alignment */
+    accent-color: #7373e8;
+    padding: 0; /* Range inputs handle padding differently */
+    margin: 0 5px; /* Align with gap */
 }
 
-#tools button {
-    text-align: center;
-    font-size: 2em;
-    margin: 5px;
-    width: 50px;
-    height: 50px;
+/* Adjusting specific buttons for content/icons */
+#tools button { /* General buttons in tools */
+    min-width: 42px; /* Minimum width */
+    padding-left: 10px; /* More padding for text/icons */
+    padding-right: 10px;
+}
+#tools button#clear,
+#tools button#undo,
+#tools button#toolPencil,
+#tools button#toolArrow,
+#tools button#toolCheckmark,
+#tools button#toolX {
+    font-size: 1.5em; /* Larger icons for these buttons */
 }
 
-#tools button#clear {
-    font-size: 2em;
-}
 
 #tools button#undo {
-    margin-right: 50px;
-}
-
-#tools #canvas {
-    width: 100%;
-    height: 100%;
+    margin-right: 15px; /* Existing larger margin adjusted */
 }
 
 #tools button#toggleTools {
-    margin-left: auto;
-    margin-right: 0;
+    margin-left: auto; /* Push to the right */
 }
 #tools button#toggleTools.flip {
-    transform: scaleY(-1);
+    transform: scaleY(-1); /* Kept */
 }
 
 #tools button#fullscreen {
-    margin-left: 5px;
-    transform: scaleX(-1);
+    /* margin-left: 5px; /* Gap handles spacing */
+    transform: scaleX(-1); /* Kept */
 }
 
-#tools input#offset {
-    margin-left: 5px;
-    margin-right: 5px;
-}
-
-#tools input#inset {
-    margin-right: 50px;
-}
-
-#tools input#lineWidth {
-    width: 150px;
-    accent-color: #7373e8;
-}
+/* Removed input#offset, input#inset styles as elements are removed */
+/* Removed #tools #canvas style as it's not relevant */
 
 .hide {
     display: none !important;
+}
+
+/* Ensure canvas & video don't cause overflow within their scaled containers */
+canvas, video { /* This rule might be too general if there are other canvases/videos */
+    overflow: hidden; /* Kept for safety, but scaling should handle this */
 }
